@@ -95,24 +95,24 @@ class TransformerConvBlock(nn.Module):
              nn.init.constant_(self.main_path_spatial_reduction[1].weight, 1)
              nn.init.constant_(self.main_path_spatial_reduction[1].bias, 0)
 
-    def load_conv_weights(self, conv1, conv2):
-        with torch.no_grad():
-            conv1_weights = conv1.weight  # [C_out, C_in, 3, 3]
-            head_locations = [(i, j) for i in range(3) for j in range(3)]
-            selected_heads = head_locations[:self.num_heads]
+    # def load_conv_weights(self, conv1, conv2):
+    #     with torch.no_grad():
+    #         conv1_weights = conv1.weight  # [C_out, C_in, 3, 3]
+    #         head_locations = [(i, j) for i in range(3) for j in range(3)]
+    #         selected_heads = head_locations[:self.num_heads]
             
-            for head_idx, (i, j) in enumerate(selected_heads):
-                patch = conv1_weights[:, :, i, j]  # [C_out, C_in]
-                usable_dim = min(self.head_dim, patch.shape[1])
-                self.W_V[head_idx, :, :usable_dim] = patch.T[:self.in_channels, :usable_dim]
+    #         for head_idx, (i, j) in enumerate(selected_heads):
+    #             patch = conv1_weights[:, :, i, j]  # [C_out, C_in]
+    #             usable_dim = min(self.head_dim, patch.shape[1])
+    #             self.W_V[head_idx, :, :usable_dim] = patch.T[:self.in_channels, :usable_dim]
 
 
-            # FFN
-            conv2_weights = conv2.weight  # [C_out, C_in, 3, 3]
-            ffn1_weights = conv2_weights.mean(dim=[2, 3]) # [C_out, C_in]
-            if ffn1_weights.shape[1] != self.ffn1.weight.shape[1] or ffn1_weights.shape[0] != self.ffn1.weight.shape[0]:
-                ffn1_weights = F.adaptive_avg_pool2d(ffn1_weights.unsqueeze(0), self.ffn1.weight.shape[:2]).squeeze(0)
-            self.ffn1.weight.data = ffn1_weights
+    #         # FFN
+    #         conv2_weights = conv2.weight  # [C_out, C_in, 3, 3]
+    #         ffn1_weights = conv2_weights.mean(dim=[2, 3]) # [C_out, C_in]
+    #         if ffn1_weights.shape[1] != self.ffn1.weight.shape[1] or ffn1_weights.shape[0] != self.ffn1.weight.shape[0]:
+    #             ffn1_weights = F.adaptive_avg_pool2d(ffn1_weights.unsqueeze(0), self.ffn1.weight.shape[:2]).squeeze(0)
+    #         self.ffn1.weight.data = ffn1_weights
 
     def forward(self, x):
 
