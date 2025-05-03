@@ -77,12 +77,15 @@ class TransformerConvBlock(nn.Module):
              )
 
         self._init_weights()
-        
+        self.scale_norm1 = nn.Parameter(torch.tensor(0.1))   
+        self.scale_attn = nn.Parameter(torch.tensor(0.1))     
+        self.scale_ffn = nn.Parameter(torch.tensor(0.1))      
+        self.scale_norm2 = nn.Parameter(torch.tensor(0.01)) 
 
     def _init_weights(self):
-        nn.init.kaiming_normal_(self.W_Q)
-        nn.init.kaiming_normal_(self.W_K)
-        nn.init.kaiming_normal_(self.W_V)
+        nn.init.uniform_(self.W_Q, -0.01, 0.01)
+        nn.init.uniform_(self.W_K, -0.01, 0.01)
+        nn.init.uniform_(self.W_V, -0.01, 0.01)
         nn.init.xavier_uniform_(self.W_O)
         nn.init.zeros_(self.ffn1.bias)
         nn.init.zeros_(self.ffn2.bias)
@@ -112,69 +115,71 @@ class TransformerConvBlock(nn.Module):
             self.ffn1.weight.data = ffn1_weights
 
     def forward(self, x):
-            # Перед использованием x
-            # x = (x - x.mean()) / (x.std() + 1e-6)
 
-            identity = x
-            B, C, H, W = x.shape
-            
-            # Attention part
-            x_norm = self.norm1(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)#[B, H, W, C]
-            x_attn = torch.zeros_like(x_norm)
-            
-            # Reshape for attention
-            x_reshaped = x_norm.permute(0, 2, 3, 1).reshape(B * H * W, C)  #[B*H*W, C]
-            
-            # Multi-head attention
-            Q = torch.matmul(x_reshaped, self.W_Q.reshape(-1, self.head_dim * self.num_heads))  #[B*H*W, C] * [C , self.head_dim * self.num_heads] = [B*H*W, num_heads * head_dim]
-            K = torch.matmul(x_reshaped, self.W_K.reshape(-1, self.head_dim * self.num_heads))
-            V = torch.matmul(x_reshaped, self.W_V.reshape(-1, self.head_dim * self.num_heads))
-            
-            # Multi-head attention
-            Q = torch.matmul(x_reshaped, self.W_Q.reshape(-1, self.head_dim * self.num_heads))  #[B*H*W, C] * [C , self.head_dim * self.num_heads] = [B*H*W, num_heads * head_dim]
-            K = torch.matmul(x_reshaped, self.W_K.reshape(-1, self.head_dim * self.num_heads))
-            V = torch.matmul(x_reshaped, self.W_V.reshape(-1, self.head_dim * self.num_heads))
-            
-            Q = Q.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)  # [B, num_heads, H, W, head_dim]
-            K = K.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)
-            V = V.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)
-            
-            # Attention scores
-            attn_scores = torch.einsum('bnhwd,bmhwd->bnmhw', Q, K) / (self.head_dim ** 0.5)
-            attn_scores = attn_scores - attn_scores.amax(dim=2, keepdim=True)  # Стабильный softmax
-            attn_weights = F.softmax(attn_scores.clamp(-20, 20), dim=2) 
-            x_attn = torch.einsum('bnmhw,bmhwd->bnhwd', attn_weights, V)
-            x_attn = x_attn.permute(0, 2, 3, 1, 4).reshape(B, H, W, -1)  #[B, H, W, num_heads * head_dim]
-            x_attn = torch.matmul(x_attn, self.W_O).permute(0, 3, 1, 2)  #[B, H, W, out_channels]
-            
-            # Residual connection
-            x = x_norm + x_attn
-            x = F.relu(x)
 
-            # FFN part
-            # x is [B, out_channels, H, W] here after attention and relu.
-            x = x.permute(0, 2, 3, 1) # Shape [B, H, W, out_channels]
+        identity = x
+        B, C, H, W = x.shape
+        
+        # Attention part
+        x_norm = self.norm1(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2)* self.scale_norm1 #[B, H, W, C]
+        x_attn = torch.zeros_like(x_norm)
+        
+        # Reshape for attention
+        x_reshaped = x_norm.permute(0, 2, 3, 1).reshape(B * H * W, C)  #[B*H*W, C]
+        
+        # Multi-head attention
+        Q = torch.matmul(x_reshaped, self.W_Q.reshape(-1, self.head_dim * self.num_heads))  #[B*H*W, C] * [C , self.head_dim * self.num_heads] = [B*H*W, num_heads * head_dim]
+        K = torch.matmul(x_reshaped, self.W_K.reshape(-1, self.head_dim * self.num_heads))
+        V = torch.matmul(x_reshaped, self.W_V.reshape(-1, self.head_dim * self.num_heads))
+        
+        # Multi-head attention
+        Q = torch.matmul(x_reshaped, self.W_Q.reshape(-1, self.head_dim * self.num_heads))  #[B*H*W, C] * [C , self.head_dim * self.num_heads] = [B*H*W, num_heads * head_dim]
+        K = torch.matmul(x_reshaped, self.W_K.reshape(-1, self.head_dim * self.num_heads))
+        V = torch.matmul(x_reshaped, self.W_V.reshape(-1, self.head_dim * self.num_heads))
+        
+        Q = Q.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)  # [B, num_heads, H, W, head_dim]
+        K = K.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)
+        V = V.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)
+        
+        # Attention scores
+        attn_scores = torch.einsum('bnhwd,bmhwd->bnmhw', Q, K) / (self.head_dim ** 0.5)
+        attn_scores = attn_scores - attn_scores.amax(dim=2, keepdim=True)  # Стабильный softmax
+        attn_weights = F.softmax(attn_scores.clamp(-20, 20), dim=2) 
+        x_attn = torch.einsum('bnmhw,bmhwd->bnhwd', attn_weights, V)
+        x_attn = x_attn.permute(0, 2, 3, 1, 4).reshape(B, H, W, -1)  #[B, H, W, num_heads * head_dim]
+        x_attn = torch.matmul(x_attn, self.W_O).permute(0, 3, 1, 2)*self.scale_attn  #[B, H, W, out_channels]
 
-            # Apply FFN to the last dimension (out_channels)
-            x = self.ffn1(x)# Shape [B, H, W, hidden_dim]
-            x = F.relu(x)
-            x = self.ffn2(x) # Shape [B, H, W, out_channels]
+        
+        # Residual connection
+        x = x_norm + x_attn
+        x = F.relu(x)
 
-            # Permute back to [B, out_channels, H, W]
-            x = x.permute(0, 3, 1, 2)
+        # FFN part
+        # x is [B, out_channels, H, W] here after attention and relu.
+        x = x.permute(0, 2, 3, 1) # Shape [B, H, W, out_channels]
 
-            # Final normalization and residual
-            x = self.norm2(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2) #[B, out_channels, H, W]
+        # Apply FFN to the last dimension (out_channels)
+        x = self.ffn1(x)*self.scale_ffn # Shape [B, H, W, hidden_dim]
 
-            # Apply spatial reduction to the main path output if stride > 1
-            if self.stride != 1:
-                x = self.main_path_spatial_reduction(x) # Now x has shape [B, out_channels, H', W']
+        x = F.relu(x)
+        x = self.ffn2(x)*self.scale_ffn # Shape [B, H, W, out_channels]
 
-            # Second residual connection
-            x += self.shortcut(identity)
-            x = F.relu(x)
 
-            return x
+        # Permute back to [B, out_channels, H, W]
+        x = x.permute(0, 3, 1, 2)
+
+        # Final normalization and residual
+        x = self.norm2(x.permute(0, 2, 3, 1)).permute(0, 3, 1, 2) *self.scale_norm2 #[B, out_channels, H, W]
+
+        # Apply spatial reduction to the main path output if stride > 1
+        if self.stride != 1:
+             x = self.main_path_spatial_reduction(x) # Now x has shape [B, out_channels, H', W']
+
+        # Second residual connection
+        x += self.shortcut(identity)
+        x = F.relu(x)
+
+        return x
 
 
 
@@ -213,10 +218,10 @@ class TransformerModel(nn.Module):
             out_c = block.conv2.out_channels
             if idx==0:
                 trans_block = TransformerConvBlock(in_c, out_c, num_heads=8,stride=stride0)
-                # trans_block.load_conv_weights(block.conv1, block.conv2)
+                trans_block.load_conv_weights(block.conv1, block.conv2)
             elif idx==1:
                 trans_block = TransformerConvBlock(in_c, out_c, num_heads=8,stride=stride1)
-                # trans_block.load_conv_weights(block.conv1, block.conv2)
+                trans_block.load_conv_weights(block.conv1, block.conv2)
             layers.append(trans_block)
         return nn.Sequential(*layers)
 

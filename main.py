@@ -14,6 +14,8 @@ import timm
 import detectors
 from transformer import model_transformer,model_resnet
 import json
+import time
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
 
 print(model_resnet)
@@ -304,7 +306,6 @@ def train_distillation(teacher, student, train_loader, val_loader, epochs=10):
         
         print(f'Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(train_loader):.4f}, '
               f'Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%')
-
 
 
 # Запуск дистилляции
