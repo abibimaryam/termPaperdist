@@ -77,10 +77,10 @@ class TransformerConvBlock(nn.Module):
              )
 
         self._init_weights()
-        self.scale_norm1 = nn.Parameter(torch.tensor(0.1))   
+        self.scale_norm1 = nn.Parameter(torch.tensor(0.37))   
         self.scale_attn = nn.Parameter(torch.tensor(0.1))     
-        self.scale_ffn = nn.Parameter(torch.tensor(0.1))      
-        self.scale_norm2 = nn.Parameter(torch.tensor(0.01)) 
+        self.scale_ffn = nn.Parameter(torch.tensor(0.22))      
+        self.scale_norm2 = nn.Parameter(torch.tensor(0.5)) 
 
     def _init_weights(self):
         nn.init.uniform_(self.W_Q, -0.01, 0.01)
@@ -218,10 +218,10 @@ class TransformerModel(nn.Module):
             out_c = block.conv2.out_channels
             if idx==0:
                 trans_block = TransformerConvBlock(in_c, out_c, num_heads=8,stride=stride0)
-                trans_block.load_conv_weights(block.conv1, block.conv2)
+                # trans_block.load_conv_weights(block.conv1, block.conv2)
             elif idx==1:
                 trans_block = TransformerConvBlock(in_c, out_c, num_heads=8,stride=stride1)
-                trans_block.load_conv_weights(block.conv1, block.conv2)
+                # trans_block.load_conv_weights(block.conv1, block.conv2)
             layers.append(trans_block)
         return nn.Sequential(*layers)
 
