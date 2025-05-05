@@ -16,7 +16,7 @@ from transformer import model_transformer,model_resnet
 import json
 import time
 from torch.optim.lr_scheduler import CosineAnnealingLR
-
+from datetime import datetime
 
 print(model_resnet)
 print(model_transformer)
@@ -25,7 +25,7 @@ print(model_transformer)
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
 batch_size = 32
-epochs = 5
+epochs = 3
 
 # Загрузка данных
 train_transforms = transforms.Compose([
@@ -48,80 +48,7 @@ train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True, num_w
 test_loader = DataLoader(test_data, batch_size=batch_size, shuffle=False, num_workers=4)
 
 
-
-
-
-#  Обертка для получения промежуточных выходов ResNet (учитель)
-class ResNetWrapper(nn.Module):
-    def __init__(self, resnet):
-        super().__init__()
-        self.resnet = resnet
-        self.features = {}
-        
-        # хуки для слоев ResNet
-        self._register_hooks()
     
-    def _register_hooks(self):
-        layers = [
-            self.resnet.conv1,
-            self.resnet.layer1,
-            self.resnet.layer2, 
-            self.resnet.layer3,
-            self.resnet.layer4
-        ]
-        
-        def get_feature_hook(layer_name):
-            def hook(module, input, output):
-                self.features[layer_name] = output
-            return hook
-        
-        self.handles = []
-        for i, layer in enumerate(layers):
-            self.handles.append(layer.register_forward_hook(get_feature_hook(f'layer_{i}')))
-    
-    def forward(self, x):
-        self.features.clear()
-        return self.resnet(x)
-    
-    def get_features(self):
-        return [self.features[f'layer_{i}'] for i in range(5)]
-
-#  Обертка для получения промежуточных выходов Transformer (студент)
-class TransformerWrapper(nn.Module):
-    def __init__(self, transformer):
-        super().__init__()
-        self.transformer = transformer
-        self.features = []
-        
-    def _hook(self, module, input, output):
-        self.features.append(output)
-    
-    def forward(self, x):
-        self.features.clear()
-        
-        #  хуки
-        handles = []
-        modules = [
-            self.transformer.stem[0],
-            self.transformer.layer1,
-            self.transformer.layer2,
-            self.transformer.layer3,
-            self.transformer.layer4
-        ]
-        
-        for module in modules:
-            handles.append(module.register_forward_hook(self._hook))
-        
-        output = self.transformer(x)
-        
-        # Удаляем хуки после forward pass
-        for handle in handles:
-            handle.remove()
-            
-        return output
-    
-    def get_features(self):
-        return self.features
 # Проверяет точность на валидационной
 def validate(model, val_loader):
     model.eval()
@@ -136,157 +63,117 @@ def validate(model, val_loader):
             correct += predicted.eq(targets).sum().item()
     return 100. * correct / total
 
-# # 3. Функция дистилляции
-# def distillation(teacher, student, train_loader, val_loader, epochs=10):
-#     # Обертки моделей
-#     teacher_wrapped = ResNetWrapper(teacher).to(device)
-#     student_wrapped = TransformerWrapper(student).to(device)
-#     best_acc=0
-#     optimizer = AdamW(student.parameters(), lr=1e-3)
-#     cls_criterion = nn.CrossEntropyLoss()
-    
-#     for epoch in range(epochs):
-#         student.train()
-#         total_loss = 0
-#         correct = 0
-#         total = 0
-        
-#         for inputs, targets in tqdm(train_loader):
-#             inputs, targets = inputs.to(device), targets.to(device)
-            
-#             # Forward pass учителя
-#             with torch.no_grad():
-#                 teacher_logits = teacher_wrapped(inputs)
-#                 teacher_features = teacher_wrapped.get_features()
-            
-#             # Forward pass студента
-#             optimizer.zero_grad()
-#             student_logits = student_wrapped(inputs)
-#             student_features = student_wrapped.get_features()
-            
-#             # Вычисление потерь
-#             loss_cls = cls_criterion(student_logits, targets)
-            
-#             # Feature matching loss
-#             loss_feat = 0
-#             for t_feat, s_feat in zip(teacher_features, student_features):
-#                 # Приводим размерности к совместимым
-#                 if t_feat.shape != s_feat.shape:
-#                     s_feat = F.adaptive_avg_pool2d(s_feat, t_feat.shape[2:])
-#                 loss_feat += F.mse_loss(s_feat, t_feat)
-            
-#             # Общие потери
-#             loss = loss_cls + 0.1 * loss_feat 
-#             loss.backward()
-#             optimizer.step()
-            
-#             total_loss += loss.item()
-#             _, predicted = student_logits.max(1)
-#             total += targets.size(0)
-#             correct += predicted.eq(targets).sum().item()
-        
-#         train_acc = 100. * correct / total
-#         val_acc = validate(student, val_loader)
-        
-#         print(f'Epoch {epoch+1}/{epochs}, Loss: {total_loss/len(train_loader):.4f}, '
-#               f'Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%')
-#         if val_acc > best_acc:
-#             best_acc = val_acc
-#             torch.save(student.state_dict(), 'student_after_distillation.pth')
-#             print("Saved new best model!")
 
-
-# # Запуск дистилляции
-# distillation(model_resnet, model_transformer, train_loader, test_loader, epochs=epochs)
-
-
-def distillation_init(
+def layerwise_distillation(
     teacher, 
     student, 
     train_loader, 
-    val_loader, 
-    init_epochs=epochs,          
-    lr=1e-3,               # Learning rate
-    feat_loss_weight=0.1,   # Вес для feature loss
-    temp=1.0,              # Температура для дистилляции      
+    val_loader,
+    epochs=5,
+    lr=1e-3,
+    log_file='distillation_log.txt'
 ):
-    # Переводим модели на нужное устройство
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
     teacher = teacher.to(device).eval()
     student = student.to(device)
     
-    # Обертки для захвата признаков
-    teacher_wrapped = ResNetWrapper(teacher)
-    student_wrapped = TransformerWrapper(student)
+    # Открываем файл для записи логов
+    with open(log_file, 'w') as f:
+        f.write("=== Layerwise Distillation Training Log ===\n")
+        f.write(f"Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Epochs per layer: {epochs}\n")
+        f.write(f"Learning rate: {lr}\n\n")
     
-    # Оптимизатор и критерии
-    optimizer = AdamW(student.parameters(), lr=lr)
-    cls_criterion = nn.CrossEntropyLoss()
-    kldiv_criterion = nn.KLDivLoss(reduction='batchmean')
+    # Слои для дистилляции
+    teacher_layers = [
+        teacher.layer1,
+        teacher.layer2,
+        teacher.layer3,
+        teacher.layer4
+    ]
     
-    best_acc = 0
-    best_state = None
+    student_layers = [
+        student.layer1,
+        student.layer2, 
+        student.layer3,
+        student.layer4
+    ]
 
-    for epoch in range(init_epochs):
-        student.train()
-        total_loss = 0
-        total_samples = 0
+    for layer_idx, (t_layer, s_layer) in enumerate(zip(teacher_layers, student_layers)):
+        layer_log = f"\n=== Training layer {layer_idx+1} ===\n"
+        print(layer_log)
+        with open(log_file, 'a') as f:
+            f.write(layer_log)
         
-        for inputs, targets in tqdm(train_loader, desc=f"Init Epoch {epoch+1}/{init_epochs}"):
-            inputs, targets = inputs.to(device), targets.to(device)
-            
-            # Forward pass учителя
-            with torch.no_grad():
-                teacher_logits = teacher_wrapped(inputs)
-                teacher_features = teacher_wrapped.get_features()
-                teacher_probs = F.softmax(teacher_logits / temp, dim=1)
-            
-            # Forward pass студента
-            optimizer.zero_grad()
-            student_logits = student_wrapped(inputs)
-            student_features = student_wrapped.get_features()
-            student_probs = F.log_softmax(student_logits / temp, dim=1)
-            
-            # Вычисление потерь
-            # Потеря классификации
-            loss_cls = cls_criterion(student_logits, targets)
-            
-            # Потеря дистилляции 
-            loss_distill = kldiv_criterion(student_probs, teacher_probs) * (temp**2)
-            
-            #  Потеря по признакам
-            loss_feat = 0
-            for t_feat, s_feat in zip(teacher_features, student_features):
-                if t_feat.shape != s_feat.shape:
-                    s_feat = F.adaptive_avg_pool2d(s_feat, t_feat.shape[2:])
-                loss_feat += F.mse_loss(s_feat, t_feat)
-            
-            # Комбинированная потеря
-            loss = loss_cls + loss_distill + feat_loss_weight * loss_feat
-            loss.backward()
-            optimizer.step()
-            
-            total_loss += loss.item() * inputs.size(0)
-            total_samples += inputs.size(0)
+        # Замораживаем все слои кроме текущего
+        for param in student.parameters():
+            param.requires_grad = False
+        for param in s_layer.parameters():
+            param.requires_grad = True
         
-        # Валидация
-        val_acc = validate(student, val_loader)
-        avg_loss = total_loss / total_samples
-        print(f"Epoch {epoch+1}/{init_epochs} | Loss: {avg_loss:.4f} | Val Acc: {val_acc:.2f}%")
+        optimizer = AdamW(s_layer.parameters(), lr=lr)
+        criterion = nn.MSELoss()
         
-        # Сохранение лучшей модели
-        if val_acc > best_acc:
-            best_acc = val_acc
-            best_state = student.state_dict()
-            torch.save(best_state, 'student_init_best.pth')
-            print(f"Saved best model with acc: {best_acc:.2f}%")
+        for epoch in range(epochs):
+            student.train()
+            total_loss = 0
+            
+            for inputs, _ in tqdm(train_loader, desc=f"Layer {layer_idx+1} Epoch {epoch+1}"):
+                inputs = inputs.to(device)
+                
+                # Teacher forward pass
+                with torch.no_grad():
+                    x_teacher = student.stem(inputs)
+                    for l in teacher_layers[:layer_idx]:
+                        x_teacher = l(x_teacher)
+                    teacher_feat = t_layer(x_teacher)
+                
+                # Student forward pass
+                optimizer.zero_grad()
+                x_student = student.stem(inputs)
+                for l in student_layers[:layer_idx]:
+                    x_student = l(x_student)
+                student_feat = s_layer(x_student)
+                
+                # Align dimensions if needed
+                if teacher_feat.shape != student_feat.shape:
+                    student_feat = F.adaptive_avg_pool2d(student_feat, teacher_feat.shape[2:])
+                
+                # Compute loss and update
+                loss = criterion(student_feat, teacher_feat)
+                loss.backward()
+                optimizer.step()
+                
+                total_loss += loss.item()
+            
+            avg_loss = total_loss / len(train_loader)
+            epoch_log = f"Layer {layer_idx+1} Epoch {epoch+1} Loss: {avg_loss:.4f}\n"
+            print(epoch_log)
+            with open(log_file, 'a') as f:
+                f.write(epoch_log)
     
-
+    # Размораживаем все слои
+    for param in student.parameters():
+        param.requires_grad = True
+    
+    # Валидация
+    val_acc = validate(student, val_loader)
+    final_log = f"\nFinal validation accuracy: {val_acc:.2f}%\n"
+    print(final_log)
+    with open(log_file, 'a') as f:
+        f.write(final_log)
+        f.write(f"Training completed at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+    
     return student
 
 
-model_transformer = distillation_init(
+model_transformer = layerwise_distillation(
     teacher=model_resnet,
     student=model_transformer,
     train_loader=train_loader,
     val_loader=test_loader,
+    epochs=epochs
 )
+
+torch.save(model_transformer, 'dist_model_transformer.pth')
