@@ -132,10 +132,6 @@ class TransformerConvBlock(nn.Module):
         K = torch.matmul(x_reshaped, self.W_K.reshape(-1, self.head_dim * self.num_heads))
         V = torch.matmul(x_reshaped, self.W_V.reshape(-1, self.head_dim * self.num_heads))
         
-        # Multi-head attention
-        Q = torch.matmul(x_reshaped, self.W_Q.reshape(-1, self.head_dim * self.num_heads))  #[B*H*W, C] * [C , self.head_dim * self.num_heads] = [B*H*W, num_heads * head_dim]
-        K = torch.matmul(x_reshaped, self.W_K.reshape(-1, self.head_dim * self.num_heads))
-        V = torch.matmul(x_reshaped, self.W_V.reshape(-1, self.head_dim * self.num_heads))
         
         Q = Q.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)  # [B, num_heads, H, W, head_dim]
         K = K.view(B, H, W, self.num_heads, self.head_dim).permute(0, 3, 1, 2, 4)
@@ -196,10 +192,10 @@ class TransformerModel(nn.Module):
         
         # начальный conv, bn, relu, maxpool
         self.stem = nn.Sequential(
-            resnet.conv1,
-            resnet.bn1,
-            resnet.act1,
-            resnet.maxpool
+            copy.deepcopy(resnet.conv1),
+            copy.deepcopy(resnet.bn1),
+            copy.deepcopy(resnet.act1),
+            copy.deepcopy(resnet.maxpool)
         )
 
         self.layer1 = self.make_layer(resnet.layer1,stride0=1,stride1=1)
@@ -209,7 +205,7 @@ class TransformerModel(nn.Module):
 
         # Pooling + FC
         self.avgpool = nn.AdaptiveAvgPool2d((1, 1))
-        self.fc = nn.Linear(512, 100)  # CIFAR-100
+        self.fc = copy.deepcopy(resnet.fc)
 
     def make_layer(self, resnet_layer,stride0,stride1):
         layers = []
@@ -236,5 +232,5 @@ class TransformerModel(nn.Module):
         x = self.fc(x)
         return x
 
-model_resnet=resnet_model.to(device)
-model_transformer = TransformerModel(resnet_model).to(device)
+model_resnet=resnet_model
+model_transformer = TransformerModel(resnet_model)
