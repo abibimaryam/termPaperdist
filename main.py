@@ -176,4 +176,4 @@ model_transformer = layerwise_distillation(
     epochs=epochs
 )
 
-torch.save(model_transformer, 'dist_model_transformer.pth')
+torch.save(model_transformer.state_dict(), 'dist_model_transformer.pth')

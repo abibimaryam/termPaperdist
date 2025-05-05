@@ -1,5 +1,5 @@
 === Layerwise Distillation Training Log ===
-Training started at: 2025-05-05 15:52:50
+Training started at: 2025-05-05 16:11:31
 Epochs per layer: 3
 Learning rate: 0.001
 
@@ -10,7 +10,7 @@ Layer 1 Epoch 2 Loss: 0.0041
 Layer 1 Epoch 3 Loss: 0.0038
 
 === Training layer 2 ===
-Layer 2 Epoch 1 Loss: 0.0118
+Layer 2 Epoch 1 Loss: 0.0117
 Layer 2 Epoch 2 Loss: 0.0060
 Layer 2 Epoch 3 Loss: 0.0059
 
@@ -20,9 +20,9 @@ Layer 3 Epoch 2 Loss: 0.0034
 Layer 3 Epoch 3 Loss: 0.0034
 
 === Training layer 4 ===
-Layer 4 Epoch 1 Loss: 0.2039
-Layer 4 Epoch 2 Loss: 0.1982
-Layer 4 Epoch 3 Loss: 0.1975
+Layer 4 Epoch 1 Loss: 0.2041
+Layer 4 Epoch 2 Loss: 0.1981
+Layer 4 Epoch 3 Loss: 0.1977
 
-Final validation accuracy: 10.85%
-Training completed at: 2025-05-05 16:03:03
+Final validation accuracy: 11.61%
+Training completed at: 2025-05-05 16:21:42

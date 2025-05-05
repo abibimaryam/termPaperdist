@@ -7,6 +7,8 @@ from torch.optim.lr_scheduler import CosineAnnealingLR
 from tqdm import tqdm
 from torchvision import datasets, transforms
 from transformer import model_transformer
+from datetime import datetime
+
 # from main import device,validate,train_loader,test_loader,model_transformer
 
 # Настройки
@@ -50,9 +52,17 @@ def validate(model, val_loader):
     return 100. * correct / total
 
 
-def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3):
+def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3, log_file='training_log.txt'):
     model.to(device)
     model.train()
+
+    with open(log_file, 'w') as f:
+        f.write("=== Fine-Tuning Training Log ===\n")
+        f.write(f"Training started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Total epochs: {epochs}\n")
+        f.write(f"Learning rate: {lr}\n")
+        f.write(f"Batch size: {train_loader.batch_size}\n")
+        f.write(f"Device: {device}\n\n")
 
     optimizer = AdamW(model.parameters(), lr=lr)
     scheduler = CosineAnnealingLR(optimizer, T_max=epochs)
@@ -65,7 +75,7 @@ def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3):
         correct = 0
         total = 0
 
-        for inputs, targets in tqdm(train_loader):
+        for inputs, targets in tqdm(train_loader, desc=f'Epoch {epoch+1}/{epochs}'):
             inputs, targets = inputs.to(device), targets.to(device)
 
             optimizer.zero_grad()
@@ -79,18 +89,41 @@ def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3):
             total += targets.size(0)
             correct += predicted.eq(targets).sum().item()
 
+        train_loss = running_loss/len(train_loader)
         train_acc = 100. * correct / total
         val_acc = validate(model, val_loader)
         scheduler.step()
 
-        print(f'[Fine-Tune] Epoch {epoch+1}/{epochs}, Loss: {running_loss/len(train_loader):.4f}, '
-              f'Train Acc: {train_acc:.2f}%, Val Acc: {val_acc:.2f}%')
+
+        log_str = (f'Epoch {epoch+1}/{epochs}\n'
+                  f'Loss: {train_loss:.4f}\n'
+                  f'Train Accuracy: {train_acc:.2f}%\n'
+                  f'Validation Accuracy: {val_acc:.2f}%\n'
+                  f'Learning Rate: {scheduler.get_last_lr()[0]:.6f}\n'
+                  f'{"Saved new best model!" if val_acc > best_acc else ""}\n'
+                  f'{"-"*50}\n')
+
+
+        print(log_str)
+
+
+        with open(log_file, 'a') as f:
+            f.write(log_str)
 
         if val_acc > best_acc:
             best_acc = val_acc
             torch.save(model.state_dict(), 'student_finetuned.pth')
-            print("Saved new best fine-tuned model!")
 
+    final_log = (f'\nTraining completed at: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}\n'
+                f'Best Validation Accuracy: {best_acc:.2f}%\n'
+                f'Model saved to: student_finetuned.pth\n')
 
-model_transformer.load_state_dict(torch.load('student_init_best.pth'))
+    with open(log_file, 'a') as f:
+        f.write(final_log)
+    print(final_log)
+
+    return model
+
+torch.serialization.add_safe_globals([model_transformer])
+model_transformer.load_state_dict(torch.load('dist_model_transformer.pth'))
 fine_tune(model_transformer, train_loader, test_loader, epochs=20)

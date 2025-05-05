@@ -1,0 +1,151 @@
+=== Fine-Tuning Training Log ===
+Training started at: 2025-05-05 17:11:26
+Total epochs: 20
+Learning rate: 0.001
+Batch size: 32
+Device: cuda
+
+Epoch 1/20
+Loss: 4.0832
+Train Accuracy: 7.13%
+Validation Accuracy: 11.18%
+Learning Rate: 0.000994
+Saved new best model!
+--------------------------------------------------
+Epoch 2/20
+Loss: 3.8399
+Train Accuracy: 10.73%
+Validation Accuracy: 8.02%
+Learning Rate: 0.000976
+
+--------------------------------------------------
+Epoch 3/20
+Loss: 3.7214
+Train Accuracy: 12.81%
+Validation Accuracy: 14.91%
+Learning Rate: 0.000946
+Saved new best model!
+--------------------------------------------------
+Epoch 4/20
+Loss: 3.6420
+Train Accuracy: 14.18%
+Validation Accuracy: 16.78%
+Learning Rate: 0.000905
+Saved new best model!
+--------------------------------------------------
+Epoch 5/20
+Loss: 3.5819
+Train Accuracy: 15.21%
+Validation Accuracy: 18.02%
+Learning Rate: 0.000854
+Saved new best model!
+--------------------------------------------------
+Epoch 6/20
+Loss: 3.5328
+Train Accuracy: 16.12%
+Validation Accuracy: 19.20%
+Learning Rate: 0.000794
+Saved new best model!
+--------------------------------------------------
+Epoch 7/20
+Loss: 3.4866
+Train Accuracy: 16.92%
+Validation Accuracy: 18.70%
+Learning Rate: 0.000727
+
+--------------------------------------------------
+Epoch 8/20
+Loss: 3.4567
+Train Accuracy: 17.65%
+Validation Accuracy: 17.86%
+Learning Rate: 0.000655
+
+--------------------------------------------------
+Epoch 9/20
+Loss: 3.4133
+Train Accuracy: 18.51%
+Validation Accuracy: 17.66%
+Learning Rate: 0.000578
+
+--------------------------------------------------
+Epoch 10/20
+Loss: 3.3868
+Train Accuracy: 18.77%
+Validation Accuracy: 21.83%
+Learning Rate: 0.000500
+Saved new best model!
+--------------------------------------------------
+Epoch 11/20
+Loss: 3.3513
+Train Accuracy: 19.40%
+Validation Accuracy: 21.91%
+Learning Rate: 0.000422
+Saved new best model!
+--------------------------------------------------
+Epoch 12/20
+Loss: 3.3172
+Train Accuracy: 19.97%
+Validation Accuracy: 22.00%
+Learning Rate: 0.000345
+Saved new best model!
+--------------------------------------------------
+Epoch 13/20
+Loss: 3.2937
+Train Accuracy: 20.62%
+Validation Accuracy: 21.46%
+Learning Rate: 0.000273
+
+--------------------------------------------------
+Epoch 14/20
+Loss: 3.2586
+Train Accuracy: 21.15%
+Validation Accuracy: 23.74%
+Learning Rate: 0.000206
+Saved new best model!
+--------------------------------------------------
+Epoch 15/20
+Loss: 3.2409
+Train Accuracy: 21.47%
+Validation Accuracy: 24.92%
+Learning Rate: 0.000146
+Saved new best model!
+--------------------------------------------------
+Epoch 16/20
+Loss: 3.2173
+Train Accuracy: 21.89%
+Validation Accuracy: 24.99%
+Learning Rate: 0.000095
+Saved new best model!
+--------------------------------------------------
+Epoch 17/20
+Loss: 3.1993
+Train Accuracy: 22.37%
+Validation Accuracy: 25.01%
+Learning Rate: 0.000054
+Saved new best model!
+--------------------------------------------------
+Epoch 18/20
+Loss: 3.1869
+Train Accuracy: 22.72%
+Validation Accuracy: 25.79%
+Learning Rate: 0.000024
+Saved new best model!
+--------------------------------------------------
+Epoch 19/20
+Loss: 3.1713
+Train Accuracy: 23.10%
+Validation Accuracy: 25.97%
+Learning Rate: 0.000006
+Saved new best model!
+--------------------------------------------------
+Epoch 20/20
+Loss: 3.1704
+Train Accuracy: 22.87%
+Validation Accuracy: 26.18%
+Learning Rate: 0.000000
+Saved new best model!
+--------------------------------------------------
+
+Training completed at: 2025-05-05 17:54:28
+Best Validation Accuracy: 26.18%
+Model saved to: student_finetuned.pth
