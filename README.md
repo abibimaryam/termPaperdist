@@ -1,6 +1,8 @@
 # 📑 Название | Title
 
 Инициализация весов трансформеров на основе свёрточных нейросетей с последующим дообучением
+
+
 Initialization of transformer weights based on convolutional neural networks, followed by further training
 
 ## 🧠 Описание | Description
