@@ -29,7 +29,7 @@ The project implements a hybrid Transformer-CNN architecture where ResNet18 bloc
 ## ⚙️ Установка | Setup
 
 ```bash
-git clone <repository_url>
+git clone https://github.com/abibimaryam/termPaperdist
 pip install -r requirements.txt
 ```
 
