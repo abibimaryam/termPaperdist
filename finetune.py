@@ -13,9 +13,8 @@ from datetime import datetime
 
 # Настройки
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-
 batch_size = 32
-epochs = 5
+epochs = 50
 
 # Загрузка данных
 train_transforms = transforms.Compose([
@@ -54,7 +53,7 @@ def validate(model, val_loader):
 
 def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3, log_file='training_log.txt'):
     model.to(device)
-    model.train()
+
 
     with open(log_file, 'w') as f:
         f.write("=== Fine-Tuning Training Log ===\n")
@@ -91,6 +90,7 @@ def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3, log_file='tra
 
         train_loss = running_loss/len(train_loader)
         train_acc = 100. * correct / total
+        model.eval()
         val_acc = validate(model, val_loader)
         scheduler.step()
 
@@ -122,8 +122,8 @@ def fine_tune(model, train_loader, val_loader, epochs=20, lr=1e-3, log_file='tra
         f.write(final_log)
     print(final_log)
 
-    return model
+
 
 torch.serialization.add_safe_globals([model_transformer])
 model_transformer.load_state_dict(torch.load('dist_model_transformer.pth'))
-fine_tune(model_transformer, train_loader, test_loader, epochs=20)
+fine_tune(model_transformer, train_loader, test_loader, epochs=epochs)

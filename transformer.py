@@ -234,3 +234,17 @@ class TransformerModel(nn.Module):
 
 model_resnet=resnet_model
 model_transformer = TransformerModel(resnet_model)
+
+def print_parameters(model):
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            print(f"{name}: {param.numel():,} параметров")
+    
+    total = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"Всего параметров: {total:,}")
+
+print("ResNet-18:")
+print_parameters(model_resnet)
+
+print("\nTransformer модель:")
+print_parameters(model_transformer)
